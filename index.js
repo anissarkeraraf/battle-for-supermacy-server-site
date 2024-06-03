@@ -1,16 +1,14 @@
 const express = require('express');
-app = express();
 const cors = require('cors');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion } = require('mongodb');
-const port = process.env.PORT || 5000
+const port = process.env.PORT || 5000;
 
+const app = express();
 
-// middle were
+// Middleware
 app.use(cors());
 app.use(express.json());
-
-
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.bfaqolh.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -25,25 +23,48 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
+    // Connect the client to the server
     await client.connect();
+
+    const donerCollection = client.db('bloodBuddies').collection('doner');
+
+    // Endpoint to add a donor
+    app.post('/doners', async (req, res) => {
+      const donerService = req.body;
+      console.log(donerService);
+      const result = await donerCollection.insertOne(donerService);
+      res.send(result);
+    });
+
+    app.get('/doners', async (req, res) => {
+      const cursor = donerCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    })
+
+    app.get('/doners/:email', async (req, res) => {
+      const result = await donerCollection.find({ email: req.params.email }).toArray();
+      res.send(result)
+    })
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
+
+    // Start the server
+    app.listen(port, () => {
+      console.log(`Backend is running on ${port}`);
+    });
+
+  } catch (err) {
+    console.error(err);
   }
 }
+
+// Run the server
 run().catch(console.dir);
 
-
-
-
+// Root endpoint
 app.get('/', (req, res) => {
-    res.send('Backend is Runing')
-})
-
-app.listen(port, () => {
-    console.log(`Backend is runing on ${port}`)
-})
+  res.send('Backend is Running');
+});
