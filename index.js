@@ -27,6 +27,7 @@ async function run() {
     await client.connect();
 
     const donerCollection = client.db('bloodBuddies').collection('doner');
+    const donerRequestCollection = client.db('bloodBuddies').collection('donorRequest');
 
     // Endpoint to add a donor
     app.post('/doners', async (req, res) => {
@@ -63,6 +64,14 @@ async function run() {
       const result = await donerCollection.updateOne(filter, updatedDoc);
       res.send(result);
     })
+
+    // Donor Request 
+    app.post('/donorRequest', async (req, res) => {
+      const donerRequest = req.body;
+      console.log(donerRequest);
+      const result = await donerRequestCollection.insertOne(donerRequest);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
