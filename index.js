@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 
 const app = express();
@@ -45,6 +45,23 @@ async function run() {
     app.get('/doners/:email', async (req, res) => {
       const result = await donerCollection.find({ email: req.params.email }).toArray();
       res.send(result)
+    })
+
+    app.patch('/doners/:email', async (req, res) => {
+      const item = req.body;
+      const email = req.params.email;
+      const filter = { email: email }; // No ObjectId conversion here
+      const updatedDoc = {
+        $set: {
+          name: item.name,
+          bloodGroup: item.bloodGroup,
+          district: item.district,
+          upazila: item.upazila,
+          image: item.image // added image field
+        }
+      }
+      const result = await donerCollection.updateOne(filter, updatedDoc);
+      res.send(result);
     })
 
     // Send a ping to confirm a successful connection
