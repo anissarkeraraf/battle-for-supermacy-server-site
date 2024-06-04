@@ -78,7 +78,27 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     })
-    
+
+    app.get('/donorRequest/:email', async (req, res) => {
+      const result = await donerRequestCollection.find({ email: req.params.email }).toArray();
+      res.send(result)
+    })
+
+    app.get('/donorRequests/:id', async(req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await donerRequestCollection.findOne(query);
+      res.send(result);
+    })
+
+    app.delete('/donorRequests/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await donerRequestCollection.deleteOne(query);
+      res.send(result);
+    })
+
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
