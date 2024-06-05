@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 
@@ -24,10 +25,36 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server
-    await client.connect();
+    // await client.connect();
 
     const donerCollection = client.db('bloodBuddies').collection('doner');
     const donerRequestCollection = client.db('bloodBuddies').collection('donorRequest');
+
+    // jwt related api
+    app.post('/jwt', async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: '1h'
+      });
+      res.send({ token });
+    })
+
+    // middlewares
+    const verifyToken = (req, res, next) => {
+      console.log('inside verify token', req.headers.authorization);
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: 'forbidden access' })
+      }
+      const token = req.headers.authorization.split(' ')[1];
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: 'forbidden access' })
+        }
+        req.decoded = decoded;
+        next();
+      })
+
+    }
 
     // Endpoint to add a donor
     app.post('/doners', async (req, res) => {
@@ -37,22 +64,63 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/doners', async (req, res) => {
-      const cursor = donerCollection.find();
-      const result = await cursor.toArray();
-      res.send(result);
-    })
+    app.get('/doners', verifyToken, async (req, res) => {
+      try {
+        const { status, page = 1, perPage = 10 } = req.query;
+        const query = {};
+
+
+
+        // Apply the status filter if it's provided and not 'all'
+        if (status && status !== 'all') {
+          query.status = status;
+        }
+
+        const pageNumber = parseInt(page, 10);
+        const limit = parseInt(perPage, 10);
+        const skip = (pageNumber - 1) * limit;
+
+        // Fetch users with the specified filter, pagination, and limit
+        const users = await donerCollection.find(query).skip(skip).limit(limit).toArray();
+
+        res.json(users);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    });
+
 
     app.get('/doners/:email', async (req, res) => {
       const result = await donerCollection.find({ email: req.params.email }).toArray();
       res.send(result)
     })
 
-    app.get('/doner/:id', async(req, res) => {
+    app.get('/doner/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await donerCollection.findOne(query);
       res.send(result);
+    })
+
+
+
+
+    // Admin 
+
+    app.get('/doner/admin/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: 'unauthorized access' })
+      }
+
+      const query = { email: email };
+      const doner = await donerCollection.findOne(query);
+      let admin = false;
+      if (doner) {
+        admin = doner?.role === 'admin';
+      }
+      res.send({ admin });
     })
 
     app.patch('/doner/admin/:id', async (req, res) => {
@@ -61,6 +129,45 @@ async function run() {
       const updateDoc = {
         $set: {
           role: 'admin'
+        }
+      }
+      const result = await donerCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
+
+    // Volunteer
+    app.patch('/doner/volunteer/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'volunteer'
+        }
+      }
+      const result = await donerCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
+
+    // Block 
+    app.patch('/doner/block/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'block'
+        }
+      }
+      const result = await donerCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
+
+    // UnBlock
+    app.patch('/doner/Unblock/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'unblock'
         }
       }
       const result = await donerCollection.updateOne(filter, updateDoc);
@@ -98,7 +205,7 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/donorRequests/:id', async(req, res) => {
+    app.get('/donorRequests/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await donerRequestCollection.findOne(query);
@@ -115,7 +222,7 @@ async function run() {
     app.put('/donorRequests/:id', async (req, res) => {
       const item = req.body;
       const id = req.params.id;
-      const filter = { _id: new ObjectId(id) }; 
+      const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
         $set: {
           name: item.name,
