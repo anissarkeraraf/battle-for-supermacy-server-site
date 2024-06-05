@@ -48,21 +48,35 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/doners/:email', async (req, res) => {
-      const item = req.body;
-      const email = req.params.email;
-      const filter = { email: email }; // No ObjectId conversion here
-      const updatedDoc = {
+    app.get('/doner/:id', async(req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await donerCollection.findOne(query);
+      res.send(result);
+    })
+
+    app.patch('/doner/admin/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
         $set: {
-          name: item.name,
-          bloodGroup: item.bloodGroup,
-          district: item.district,
-          upazila: item.upazila,
-          image: item.image // added image field
+          role: 'admin'
         }
       }
-      const result = await donerCollection.updateOne(filter, updatedDoc);
+      const result = await donerCollection.updateOne(filter, updateDoc);
       res.send(result);
+    })
+
+
+    app.get('/doners/admin/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email }
+      const user = await donerCollection.findOne(query);
+      let admin = false;
+      if (user) {
+        admin = user?.role === 'admin';
+      }
+      res.send({ admin });
     })
 
     // Donor Request 
@@ -95,6 +109,29 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await donerRequestCollection.deleteOne(query);
+      res.send(result);
+    })
+
+    app.put('/donorRequests/:id', async (req, res) => {
+      const item = req.body;
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }; 
+      const updatedDoc = {
+        $set: {
+          name: item.name,
+          email: item.email,
+          bloodGroup: item.bloodGroup,
+          district: item.district,
+          upazila: item.upazila,
+          address: item.address,
+          recipientName: item.recipientName,
+          donationDate: item.donationDate,
+          donationTime: item.donationTime,
+          hospitalName: item.hospitalName,
+          requestMessage: item.requestMessage
+        }
+      }
+      const result = await donerCollection.updateOne(filter, updatedDoc);
       res.send(result);
     })
 
