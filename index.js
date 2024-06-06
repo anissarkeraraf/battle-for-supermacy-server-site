@@ -29,6 +29,7 @@ async function run() {
 
     const donerCollection = client.db('bloodBuddies').collection('doner');
     const donerRequestCollection = client.db('bloodBuddies').collection('donorRequest');
+    const blogsCollection = client.db('bloodBuddies').collection('blogs');
 
     // jwt related api
     app.post('/jwt', async (req, res) => {
@@ -175,6 +176,7 @@ async function run() {
     })
 
 
+
     app.get('/doners/admin/:email', async (req, res) => {
       const email = req.params.email;
       const query = { email: email }
@@ -187,6 +189,19 @@ async function run() {
     })
 
     // Donor Request 
+
+    app.patch('/donorRequest/pending/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: 'pending'
+        }
+      }
+      const result = await donerRequestCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
+
     app.post('/donorRequest', async (req, res) => {
       const donerRequest = req.body;
       console.log(donerRequest);
@@ -211,6 +226,7 @@ async function run() {
       const result = await donerRequestCollection.findOne(query);
       res.send(result);
     })
+
 
     app.delete('/donorRequests/:id', async (req, res) => {
       const id = req.params.id;
@@ -238,7 +254,20 @@ async function run() {
           requestMessage: item.requestMessage
         }
       }
-      const result = await donerCollection.updateOne(filter, updatedDoc);
+      const result = await donerRequestCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    })
+
+    // Blogs
+    app.post('/blogs', async (req, res) => {
+      const blogs = req.body;
+      console.log(blogs);
+      const result = await blogsCollection.insertOne(blogs);
+      res.send(result);
+    });
+
+    app.get('/blogs', async (req, res) => {
+      const result = await blogsCollection.find().toArray();
       res.send(result);
     })
 
