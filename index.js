@@ -271,6 +271,38 @@ async function run() {
       res.send(result);
     })
 
+    app.delete('/blogs/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await blogsCollection.deleteOne(query);
+      res.send(result);
+    })
+
+    app.patch('/blogs/published/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: 'published'
+        }
+      }
+      const result = await blogsCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
+
+    app.patch('/blogs/draft/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: 'draft'
+        }
+      }
+      const result = await blogsCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
+   
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
