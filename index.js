@@ -31,6 +31,7 @@ async function run() {
     const donerCollection = client.db('bloodBuddies').collection('doner');
     const donerRequestCollection = client.db('bloodBuddies').collection('donorRequest');
     const blogsCollection = client.db('bloodBuddies').collection('blogs');
+    const paymentCollection = client.db('bloodBuddies').collection('payments');
 
     // jwt related api
     app.post('/jwt', async (req, res) => {
@@ -112,11 +113,11 @@ async function run() {
       const filter = { email: email }
       const updateDoc = {
         $set: {
-         name: item.name,
-         Image: item.image,
-         district: item.district,
-         upazila: item.upazila,
-         bloodGroup: item.bloodGroup
+          name: item.name,
+          Image: item.image,
+          district: item.district,
+          upazila: item.upazila,
+          bloodGroup: item.bloodGroup
         }
       }
       const result = await donerCollection.updateOne(filter, updateDoc);
@@ -320,40 +321,54 @@ async function run() {
     })
 
 
-// Endpoint to create payment intent
-app.post('/create-payment-intent', async (req, res) => {
-  try {
-      const { price } = req.body;
+    // Endpoint to create payment intent
+    app.post('/create-payment-intent', async (req, res) => {
+      try {
+        const { price } = req.body;
 
-      // Validate price
-      if (typeof price !== 'number' || price <= 0) {
+
+        if (typeof price !== 'number' || price <= 0) {
           return res.status(400).send({ error: 'Invalid price parameter' });
-      }
+        }
 
-      // Convert price to cents
-      const amount = parseInt(price * 100);
 
-      // Log the amount for debugging
-      console.log(`Creating payment intent for amount: ${amount}`);
+        const amount = parseInt(price * 100);
 
-      // Create the payment intent
-      const paymentIntent = await stripe.paymentIntents.create({
+        console.log(`Creating payment intent for amount: ${amount}`);
+
+        const paymentIntent = await stripe.paymentIntents.create({
           amount: amount,
           currency: 'usd',
           payment_method_types: ['card']
-      });
+        });
 
-      // Send the client secret to the frontend
-      res.send({
+        res.send({
           clientSecret: paymentIntent.client_secret
-      });
-  } catch (error) {
-      console.error('Stripe error:', error);
-      res.status(500).send({ error: error.message });
-  }
-});
+        });
+      } catch (error) {
+        console.error('Stripe error:', error);
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+    app.post('/payments', async (req, res) => {
+      const payment = req.body;
+      const paymentResult = await paymentCollection.insertOne(payment);
+      console.log('payment info', payment)
 
 
+      res.send(paymentResult);
+    })
+
+    app.get('/payments', async (req, res) => {
+      const result = await paymentCollection.find().toArray();
+      res.send(result);
+    })
+
+    app.get('/payments/:email', async (req, res) => {
+      const result = await paymentCollection.find({ email: req.params.email }).toArray();
+      res.send(result)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
