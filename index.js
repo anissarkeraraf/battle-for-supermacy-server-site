@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const port = process.env.PORT || 5000;
 
 const app = express();
@@ -65,7 +66,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/doners', verifyToken, async (req, res) => {
+    app.get('/doners', async (req, res) => {
       try {
         const { status, page = 1, perPage = 10 } = req.query;
         const query = {};
@@ -104,7 +105,23 @@ async function run() {
       res.send(result);
     })
 
-
+    // Update Donor Route
+    app.patch('/doners/:email', async (req, res) => {
+      const item = req.body;
+      const email = req.params.email;
+      const filter = { email: email }
+      const updateDoc = {
+        $set: {
+         name: item.name,
+         Image: item.image,
+         district: item.district,
+         upazila: item.upazila,
+         bloodGroup: item.bloodGroup
+        }
+      }
+      const result = await donerCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
 
 
     // Admin 
@@ -301,7 +318,41 @@ async function run() {
       const result = await blogsCollection.updateOne(filter, updateDoc);
       res.send(result);
     })
-   
+
+
+// Endpoint to create payment intent
+app.post('/create-payment-intent', async (req, res) => {
+  try {
+      const { price } = req.body;
+
+      // Validate price
+      if (typeof price !== 'number' || price <= 0) {
+          return res.status(400).send({ error: 'Invalid price parameter' });
+      }
+
+      // Convert price to cents
+      const amount = parseInt(price * 100);
+
+      // Log the amount for debugging
+      console.log(`Creating payment intent for amount: ${amount}`);
+
+      // Create the payment intent
+      const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: 'usd',
+          payment_method_types: ['card']
+      });
+
+      // Send the client secret to the frontend
+      res.send({
+          clientSecret: paymentIntent.client_secret
+      });
+  } catch (error) {
+      console.error('Stripe error:', error);
+      res.status(500).send({ error: error.message });
+  }
+});
+
 
 
     // Send a ping to confirm a successful connection
